@@ -45,7 +45,7 @@ page 50100 "Magento Setup"
                 var
                     magentoAPI: Codeunit MagentoAPI;
                 begin
-                    magentoAPI.Login()
+                    magentoAPI.Login();
 
                 end;
             }
