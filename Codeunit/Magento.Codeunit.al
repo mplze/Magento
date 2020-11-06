@@ -48,8 +48,31 @@ codeunit 50100 MagentoAPI
 
     end;
 
+    local procedure EndSession()
+    var
+        HttpHeader: HttpHeaders;
+        Httpontents: HttpContent;
+        Payload: Text;
+        TextResponse: Text;
+    begin
+        Payload :=
+        '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:Magento">' +
+            '< soapenv:Header/>' +
+                '<soapenv:Body>' +
+                    '<urn:endSession soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
+                    '<sessionId xsi:type="xsd:string">' + SessionId + '</sessionId>' +
+                '</urn:endSession>' +
+            '</soapenv:Body>' +
+        '</soapenv:Envelope>';
 
-
+        Httpontents.Clear();
+        Httpontents.WriteFrom(Payload);
+        Httpontents.GetHeaders(HttpHeader);
+        HttpHeader.Clear();
+        HttpHeader.Add('Content-Type', 'text/xml;charset=UTF-8');
+        HttpHeader.Add('Action', 'urn:Action');
+        TextResponse := POST(Payload, Httpontents);
+    end;
 
     local procedure POST(Payload: Text; var HttpContent: HttpContent): Text
     var
