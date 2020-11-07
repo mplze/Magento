@@ -275,13 +275,15 @@ codeunit 50100 MagentoAPI
         i: Integer;
     begin
         Login();
-        Payload := '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:Magento" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/">' +
-       '<soapenv:Header/>' +
-       '<soapenv:Body>' +
-          '<urn:salesOrderList soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
-             '<sessionId xsi:type="xsd:string">' + SessionId + '</sessionId>' +
-             '<filters xsi:type="urn:filters">' +
-             '<complex_filter SOAP-ENC:arrayType="ns1:complexFilter[1]" xsi:type="ns1:complexFilterArray">' +
+
+        Payload :=
+            '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:Magento" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/">' +
+                '<soapenv:Header/>' +
+                '<soapenv:Body>' +
+                '<urn:salesOrderList soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
+                '<sessionId xsi:type="xsd:string">' + SessionId + '</sessionId>' +
+                '<filters xsi:type="urn:filters">' +
+                '<complex_filter SOAP-ENC:arrayType="ns1:complexFilter[1]" xsi:type="ns1:complexFilterArray">' +
                 '<item xsi:type="ns1:complexFilter">' +
                     '<key xsi:type="xsd:string">order_id</key>' +
                     '<value xsi:type="ns1:associativeEntity">' +
@@ -290,10 +292,10 @@ codeunit 50100 MagentoAPI
                     '</value>' +
                 '</item>' +
             '</complex_filter>' +
-       '</filters>' +
-    '</urn:salesOrderList>' +
-    '</soapenv:Body>' +
-    '</soapenv:Envelope>';
+            '</filters>' +
+            '</urn:salesOrderList>' +
+            '</soapenv:Body>' +
+            '</soapenv:Envelope>';
 
         HttpContent.Clear();
         HttpContent.WriteFrom(Payload);
@@ -368,24 +370,98 @@ codeunit 50100 MagentoAPI
         end;
     end;
 
-
-
-
-    local procedure GetOrderDetails()
+    procedure GetOrderDetails(orderIncrementId: Code[50])
     var
-        myInt: Integer;
+        OrderLine: Record "Order Line";
+        HttpHeader: HttpHeaders;
+        HttpContent: HttpContent;
+        Payload: Text;
+        TextResponse: Text;
+
+        OrderLineXMLDoc: XmlDocument;
+        OrderLineListNode: XmlNodeList;
+        SingleLineNode: XmlNode;
+        TxtOrderLine: Text;
+        LineXMLDoc: XmlDocument;
+        LineNode: XmlNode;
+        orderid: Code[50];
+        i: Integer;
+
     begin
+        Login();
 
-        /*   <soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:Magento">
-         <soapenv:Header/>
-         <soapenv:Body>
-            <urn:salesOrderInfo soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-               <sessionId xsi:type="xsd:string">09ba5b6638a542a4edd369628bbf81d9</sessionId>
-               <orderIncrementId xsi:type="xsd:string">100000049</orderIncrementId>
-            </urn:salesOrderInfo>
-         </soapenv:Body>
-      </soapenv:Envelope> */
+        Payload :=
+           '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:Magento">' +
+               '<soapenv:Header/>' +
+               '<soapenv:Body>' +
+               '<urn:salesOrderInfo soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
+                   '<sessionId xsi:type="xsd:string">' + SessionId + '</sessionId>' +
+                   '<orderIncrementId xsi:type="xsd:string">' + orderIncrementId + '</orderIncrementId>' +
+                   '</urn:salesOrderInfo>' +
+               '</soapenv:Body>' +
+           '</soapenv:Envelope>';
 
+        HttpContent.Clear();
+        HttpContent.WriteFrom(Payload);
+        HttpContent.GetHeaders(HttpHeader);
+        HttpHeader.Clear();
+        HttpHeader.Add('Content-Type', 'text/xml;charset=UTF-8');
+        HttpHeader.Add('Action', 'urn:Action');
+
+        TextResponse := POST(Payload, HttpContent);
+
+
+        XmlDocument.ReadFrom(TextResponse, OrderLineXMLDoc);
+        if OrderLineXMLDoc.SelectNodes('//result/items', OrderLineListNode) then begin
+            for i := 1 to OrderLineListNode.Count do begin
+                OrderLineListNode.Get(i, SingleLineNode);
+                TxtOrderLine := SingleLineNode.AsXmlElement().InnerXml();
+                TxtOrderLine := StrSubstNo('%1%2%3', '<Items>', TxtOrderLine, '</Items>');
+
+                IF XmlDocument.ReadFrom(TxtOrderLine, LineXMLDoc) then begin
+                    LineXMLDoc.SelectSingleNode('//order_id', LineNode);
+                    orderid := LineNode.AsXmlElement().InnerText();
+
+                    OrderLine.Reset();
+                    OrderLine.SetRange(order_id, orderid);
+                    OrderLine.DeleteAll();
+
+                    OrderLine.Init();
+                    OrderLine.order_id := orderid;
+                    OrderLine."Line No" := OrderLine.GetNextLineNo(orderid);
+
+                    Clear(LineNode);
+                    if LineXMLDoc.SelectSingleNode('//item_id', LineNode) then
+                        OrderLine.item_id := LineNode.AsXmlElement().InnerText();
+
+                    Clear(LineNode);
+                    if LineXMLDoc.SelectSingleNode('//order_id', LineNode) then
+                        OrderLine.product_id := LineNode.AsXmlElement().InnerText();
+
+                    Clear(LineNode);
+                    if LineXMLDoc.SelectSingleNode('//sku', LineNode) then
+                        OrderLine.sku := LineNode.AsXmlElement().InnerText();
+
+                    Clear(LineNode);
+                    if LineXMLDoc.SelectSingleNode('//name', LineNode) then
+                        OrderLine.name := LineNode.AsXmlElement().InnerText();
+
+                    Clear(LineNode);
+                    if LineXMLDoc.SelectSingleNode('//qty_ordered', LineNode) then
+                        Evaluate(OrderLine.qty_ordered, LineNode.AsXmlElement().InnerText());
+
+                    Clear(LineNode);
+                    if LineXMLDoc.SelectSingleNode('//price', LineNode) then
+                        Evaluate(OrderLine.price, LineNode.AsXmlElement().InnerText());
+
+                    Clear(LineNode);
+                    if LineXMLDoc.SelectSingleNode('//tax_amount', LineNode) then
+                        Evaluate(OrderLine.tax_amount, LineNode.AsXmlElement().InnerText());
+
+                    OrderLine.Insert();
+                end;
+            end;
+        end;
     end;
 
     var
