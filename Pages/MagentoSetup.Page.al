@@ -28,6 +28,11 @@ page 50100 "Magento Setup"
                     ApplicationArea = All;
                     ToolTip = 'Enter API Key';
                 }
+                field("Store View"; Rec."Store View")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Store View';
+                }
 
             }
         }

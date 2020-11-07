@@ -5,6 +5,43 @@ codeunit 50100 MagentoAPI
 
     end;
 
+    local procedure GetSetup()
+    begin
+        MagentoSetup.Get();
+        MagentoSetup.TestField("API User Name");
+        MagentoSetup.TestField("API key");
+        MagentoSetup.TestField("API URL");
+    end;
+
+
+
+    local procedure POST(Payload: Text; var HttpContent_: HttpContent): Text
+    var
+        HttpClient: HttpClient;
+        HttpResponse: HttpResponseMessage;
+        TextResponse: Text;
+        ResponseErr: Label 'Response Error %1', Comment = '%1 Response error ';
+        ResponseReadErr: Label 'Response Cannot Read error';
+        Data: Text;
+    begin
+        HttpClient.Clear();
+        Clear(HttpResponse);
+        Clear(TextResponse);
+
+        HttpContent_.ReadAs(Data);
+
+        if NOT HttpClient.Post(MagentoSetup."API URL", HttpContent_, HttpResponse) then
+            Error('HttpClient error');
+
+        if not HttpResponse.IsSuccessStatusCode then
+            Error(ResponseErr, HttpResponse.ReasonPhrase);
+
+        if HttpResponse.Content.ReadAs(TextResponse) then
+            exit(TextResponse)
+        else
+            Error(ResponseReadErr);
+    end;
+
     procedure Login(): Boolean
     var
         HttpHeader: HttpHeaders;
@@ -74,34 +111,153 @@ codeunit 50100 MagentoAPI
         TextResponse := POST(Payload, Httpontents);
     end;
 
-    local procedure POST(Payload: Text; var HttpContent: HttpContent): Text
+    procedure GetCatalogProductList()
     var
-        HttpClient: HttpClient;
-        HttpResponse: HttpResponseMessage;
+        MagentoItemList: Record "Magento Item";
+        HttpHeader: HttpHeaders;
+        HttpContent: HttpContent;
+        Payload: Text;
         TextResponse: Text;
         ResponseErr: Label 'Response Error %1', Comment = '%1 Response error ';
         ResponseReadErr: Label 'Response Cannot Read error';
+        ProductListXMLDoc: XmlDocument;
+        ItemListXMLDoc: XmlDocument;
+        ItemListNode: XmlNodeList;
+        ItemNode: XmlNode;
+        ProductIDNode: XmlNode;
+        SKUNode: XmlNode;
+        NameNode: XmlNode;
+        SetNode: XmlNode;
+        TypeNode: XmlNode;
+        TxtItemsNode: Text;
+        XmlDocumentItem: XmlDocument;
+        ItemList: TextBuilder;
+        i: Integer;
     begin
-        GetSetup();
+        Login();
+        MagentoSetup.TestField("Store View");
 
-        HttpClient.Post(MagentoSetup."API URL", HttpContent, HttpResponse);
+        Payload := '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:Magento" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/">' +
+         '<soapenv:Header/>' +
+         '<soapenv:Body>' +
+            '<urn:catalogProductList soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
+               '<sessionId xsi:type="xsd:string">' + SessionId + '</sessionId>' +
+                '<storeView xsi:type="xsd:string">' + MagentoSetup."Store View" + '</storeView>' +
+            '</urn:catalogProductList>' +
+         '</soapenv:Body>' +
+      '</soapenv:Envelope>';
 
-        if not HttpResponse.IsSuccessStatusCode then
-            Error(ResponseErr, HttpResponse.HttpStatusCode);
+        HttpContent.Clear();
+        HttpContent.WriteFrom(Payload);
+        HttpContent.GetHeaders(HttpHeader);
+        HttpHeader.Clear();
+        HttpHeader.Add('Content-Type', 'text/xml;charset=UTF-8');
+        HttpHeader.Add('Action', 'urn:Action');
 
-        if HttpResponse.Content.ReadAs(TextResponse) then
-            exit(TextResponse)
-        else
-            Error(ResponseReadErr);
+        TextResponse := POST(Payload, HttpContent);
+
+
+        XmlDocument.ReadFrom(TextResponse, ProductListXMLDoc);
+        if ProductListXMLDoc.SelectNodes('//storeView/item', ItemListNode) then begin
+            for i := 1 to ItemListNode.Count do begin
+                ItemListNode.Get(i, ItemNode);
+                TxtItemsNode := ItemNode.AsXmlElement().InnerXml();
+                TxtItemsNode := StrSubstNo('%1%2%3', '<Items>', TxtItemsNode, '</Items>');
+
+                XmlDocument.ReadFrom(TxtItemsNode, ItemListXMLDoc);
+                ItemListXMLDoc.SelectSingleNode('//product_id', ProductIDNode);
+                ItemListXMLDoc.SelectSingleNode('//sku', SKUNode);
+                ItemListXMLDoc.SelectSingleNode('//name', NameNode);
+                ItemListXMLDoc.SelectSingleNode('//set', SetNode);
+                ItemListXMLDoc.SelectSingleNode('//type', TypeNode);
+
+                if MagentoItemList.Get(ProductIDNode.AsXmlElement().InnerText()) then begin
+                    MagentoItemList.SKU := SKUNode.AsXmlElement().InnerText();
+                    MagentoItemList.Name := NameNode.AsXmlElement().InnerText();
+                    MagentoItemList.Set := SetNode.AsXmlElement().InnerText();
+                    MagentoItemList.Type := TypeNode.AsXmlElement().InnerText();
+
+                    MagentoItemList.Modify();
+                end else begin
+                    MagentoItemList.Init();
+                    MagentoItemList."Product ID" := ProductIDNode.AsXmlElement().InnerText();
+                    MagentoItemList.SKU := SKUNode.AsXmlElement().InnerText();
+                    MagentoItemList.Name := NameNode.AsXmlElement().InnerText();
+                    MagentoItemList.Set := SetNode.AsXmlElement().InnerText();
+                    MagentoItemList.Type := TypeNode.AsXmlElement().InnerText();
+                    MagentoItemList.Insert();
+                end;
+            end;
+        end;
+
     end;
 
-    local procedure GetSetup()
+    procedure GenerateItemList(var ItemList: TextBuilder; ItemNo: code[20])
     begin
-        MagentoSetup.Get();
-        MagentoSetup.TestField("API User Name");
-        MagentoSetup.TestField("API key");
-        MagentoSetup.TestField("API URL");
+        ItemList.Append('<item xsi:type="xsd:string">' + ItemNo + '</item>')
     end;
+
+
+    procedure GetCatalogInventoryStockItemList(var ItemList: TextBuilder)
+    var
+        MagentoItemList: Record "Magento Item";
+        HttpHeader: HttpHeaders;
+        HttpContent: HttpContent;
+        Payload: Text;
+        TextResponse: Text;
+        ItemTags: Text;
+        ProductListXMLDoc: XmlDocument;
+        ItemListXMLDoc: XmlDocument;
+        ItemListNode: XmlNodeList;
+        ItemNode: XmlNode;
+        ProductIDNode: XmlNode;
+        QtyNode: XmlNode;
+        TxtItemsNode: Text;
+        i: Integer;
+
+    begin
+        Login();
+        ItemTags := ItemList.ToText();
+
+
+        Payload := '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:Magento" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/">' +
+      '<soapenv:Header/>' +
+      '<soapenv:Body>' +
+         '<urn:catalogInventoryStockItemList soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
+            '<sessionId xsi:type="xsd:string">' + SessionId + '</sessionId>' +
+               '<products SOAP-ENC:arrayType="xsd:string[1]" xsi:type="ns1:ArrayOfString">' + ItemTags + '</products>' +
+         '</urn:catalogInventoryStockItemList>' +
+      '</soapenv:Body>' +
+   '</soapenv:Envelope>';
+
+        HttpContent.Clear();
+        HttpContent.WriteFrom(Payload);
+        HttpContent.GetHeaders(HttpHeader);
+        HttpHeader.Clear();
+        HttpHeader.Add('Content-Type', 'text/xml;charset=UTF-8');
+        HttpHeader.Add('Action', 'urn:Action');
+
+        TextResponse := POST(Payload, HttpContent);
+
+        XmlDocument.ReadFrom(TextResponse, ProductListXMLDoc);
+        if ProductListXMLDoc.SelectNodes('//result/item', ItemListNode) then begin
+            for i := 1 to ItemListNode.Count do begin
+                ItemListNode.Get(i, ItemNode);
+                TxtItemsNode := ItemNode.AsXmlElement().InnerXml();
+                TxtItemsNode := StrSubstNo('%1%2%3', '<Items>', TxtItemsNode, '</Items>');
+
+                XmlDocument.ReadFrom(TxtItemsNode, ItemListXMLDoc);
+                ItemListXMLDoc.SelectSingleNode('//product_id', ProductIDNode);
+                ItemListXMLDoc.SelectSingleNode('//qty', QtyNode);
+
+                if MagentoItemList.Get(ProductIDNode.AsXmlElement().InnerText()) then begin
+                    Evaluate(MagentoItemList.Inventory, QtyNode.AsXmlElement().InnerText());
+                    MagentoItemList.Modify();
+                end;
+            end;
+        end;
+    end;
+
 
 
     var

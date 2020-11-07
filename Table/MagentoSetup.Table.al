@@ -25,6 +25,12 @@ table 50100 "Magento Setup"
             Caption = 'API URL';
             DataClassification = ToBeClassified;
         }
+        field(5; "Store View"; Text[10])
+        {
+            Caption = 'Store View';
+            DataClassification = ToBeClassified;
+        }
+
     }
     keys
     {
