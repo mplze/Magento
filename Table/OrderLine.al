@@ -59,4 +59,17 @@ table 50103 "Order Line"
         }
     }
 
+    procedure GetNextLineNo(OrderID: Code[50]): Integer
+    var
+        orderLine: Record "Order Line";
+    begin
+        orderLine.Reset();
+        orderLine.SetRange(order_id, OrderID);
+        if orderLine.FindLast() then
+            exit(orderLine."Line No" + 1000)
+        else
+            exit(1000);
+
+    end;
+
 }

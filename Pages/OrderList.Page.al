@@ -6,6 +6,7 @@ page 50102 "Order List"
     PageType = List;
     SourceTable = "Order Header";
     UsageCategory = Lists;
+    CardPageId = WebOrder;
 
     layout
     {
