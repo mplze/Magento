@@ -15,7 +15,7 @@ codeunit 50100 MagentoAPI
 
 
 
-    local procedure POST(Payload: Text; var HttpContent_: HttpContent): Text
+    local procedure POST(var HttpContent_: HttpContent): Text
     var
         HttpClient: HttpClient;
         HttpResponse: HttpResponseMessage;
@@ -48,8 +48,6 @@ codeunit 50100 MagentoAPI
         HttpContent: HttpContent;
         Payload: Text;
         TextResponse: Text;
-        ResponseErr: Label 'Response Error %1', Comment = '%1 Response error ';
-        ResponseReadErr: Label 'Response Cannot Read error';
         LoginResponseXML: XmlDocument;
         SessionIdNode: XmlNode;
     begin
@@ -72,7 +70,7 @@ codeunit 50100 MagentoAPI
         HttpHeader.Add('Content-Type', 'text/xml;charset=UTF-8');
         HttpHeader.Add('Action', 'urn:Action');
 
-        TextResponse := POST(Payload, HttpContent);
+        TextResponse := POST(HttpContent);
 
         XmlDocument.ReadFrom(TextResponse, LoginResponseXML);
 
@@ -108,18 +106,16 @@ codeunit 50100 MagentoAPI
         HttpHeader.Clear();
         HttpHeader.Add('Content-Type', 'text/xml;charset=UTF-8');
         HttpHeader.Add('Action', 'urn:Action');
-        TextResponse := POST(Payload, Httpontents);
+        TextResponse := POST(Httpontents);
     end;
 
     procedure GetCatalogProductList()
     var
-        MagentoItemList: Record "Magento Item";
+        MagentoItem: Record "Magento Item";
         HttpHeader: HttpHeaders;
         HttpContent: HttpContent;
         Payload: Text;
         TextResponse: Text;
-        ResponseErr: Label 'Response Error %1', Comment = '%1 Response error ';
-        ResponseReadErr: Label 'Response Cannot Read error';
         ProductListXMLDoc: XmlDocument;
         ItemListXMLDoc: XmlDocument;
         ItemListNode: XmlNodeList;
@@ -130,9 +126,8 @@ codeunit 50100 MagentoAPI
         SetNode: XmlNode;
         TypeNode: XmlNode;
         TxtItemsNode: Text;
-        XmlDocumentItem: XmlDocument;
-        ItemList: TextBuilder;
         i: Integer;
+
     begin
         Login();
         MagentoSetup.TestField("Store View");
@@ -154,11 +149,11 @@ codeunit 50100 MagentoAPI
         HttpHeader.Add('Content-Type', 'text/xml;charset=UTF-8');
         HttpHeader.Add('Action', 'urn:Action');
 
-        TextResponse := POST(Payload, HttpContent);
+        TextResponse := POST(HttpContent);
 
 
         XmlDocument.ReadFrom(TextResponse, ProductListXMLDoc);
-        if ProductListXMLDoc.SelectNodes('//storeView/item', ItemListNode) then begin
+        if ProductListXMLDoc.SelectNodes('//storeView/item', ItemListNode) then
             for i := 1 to ItemListNode.Count do begin
                 ItemListNode.Get(i, ItemNode);
                 TxtItemsNode := ItemNode.AsXmlElement().InnerXml();
@@ -171,26 +166,26 @@ codeunit 50100 MagentoAPI
                 ItemListXMLDoc.SelectSingleNode('//set', SetNode);
                 ItemListXMLDoc.SelectSingleNode('//type', TypeNode);
 
-                if MagentoItemList.Get(ProductIDNode.AsXmlElement().InnerText()) then begin
-                    MagentoItemList.SKU := SKUNode.AsXmlElement().InnerText();
-                    MagentoItemList.Name := NameNode.AsXmlElement().InnerText();
-                    MagentoItemList.Set := SetNode.AsXmlElement().InnerText();
-                    MagentoItemList.Type := TypeNode.AsXmlElement().InnerText();
+                if MagentoItem.Get(ProductIDNode.AsXmlElement().InnerText()) then begin
+                    MagentoItem.SKU := SKUNode.AsXmlElement().InnerText();
+                    MagentoItem.Name := NameNode.AsXmlElement().InnerText();
+                    MagentoItem.Set := SetNode.AsXmlElement().InnerText();
+                    MagentoItem.Type := TypeNode.AsXmlElement().InnerText();
 
-                    MagentoItemList.Modify();
+                    MagentoItem.Modify();
                 end else begin
-                    MagentoItemList.Init();
-                    MagentoItemList."Product ID" := ProductIDNode.AsXmlElement().InnerText();
-                    MagentoItemList.SKU := SKUNode.AsXmlElement().InnerText();
-                    MagentoItemList.Name := NameNode.AsXmlElement().InnerText();
-                    MagentoItemList.Set := SetNode.AsXmlElement().InnerText();
-                    MagentoItemList.Type := TypeNode.AsXmlElement().InnerText();
-                    MagentoItemList.Insert();
+                    MagentoItem.Init();
+                    MagentoItem."Product ID" := ProductIDNode.AsXmlElement().InnerText();
+                    MagentoItem.SKU := SKUNode.AsXmlElement().InnerText();
+                    MagentoItem.Name := NameNode.AsXmlElement().InnerText();
+                    MagentoItem.Set := SetNode.AsXmlElement().InnerText();
+                    MagentoItem.Type := TypeNode.AsXmlElement().InnerText();
+                    MagentoItem.Insert();
                 end;
             end;
-        end;
-
     end;
+
+
 
     procedure GenerateItemList(var ItemList: TextBuilder; ItemNo: code[20])
     begin
@@ -236,10 +231,10 @@ codeunit 50100 MagentoAPI
         HttpHeader.Add('Content-Type', 'text/xml;charset=UTF-8');
         HttpHeader.Add('Action', 'urn:Action');
 
-        TextResponse := POST(Payload, HttpContent);
+        TextResponse := POST(HttpContent);
 
         XmlDocument.ReadFrom(TextResponse, ProductListXMLDoc);
-        if ProductListXMLDoc.SelectNodes('//result/item', ItemListNode) then begin
+        if ProductListXMLDoc.SelectNodes('//result/item', ItemListNode) then
             for i := 1 to ItemListNode.Count do begin
                 ItemListNode.Get(i, ItemNode);
                 TxtItemsNode := ItemNode.AsXmlElement().InnerXml();
@@ -254,8 +249,8 @@ codeunit 50100 MagentoAPI
                     MagentoItemList.Modify();
                 end;
             end;
-        end;
     end;
+
 
     procedure GerOrderList(LastOrderID: Text)
     var
@@ -304,10 +299,10 @@ codeunit 50100 MagentoAPI
         HttpHeader.Add('Content-Type', 'text/xml;charset=UTF-8');
         HttpHeader.Add('Action', 'urn:Action');
 
-        TextResponse := POST(Payload, HttpContent);
+        TextResponse := POST(HttpContent);
 
         XmlDocument.ReadFrom(TextResponse, OrderListXMLDoc);
-        if OrderListXMLDoc.SelectNodes('//result/item', OrderListNode) then begin
+        if OrderListXMLDoc.SelectNodes('//result/item', OrderListNode) then
             for i := 1 to OrderListNode.Count do begin
                 OrderListNode.Get(i, OrderNode);
                 TxtOrderNode := OrderNode.AsXmlElement().InnerXml();
@@ -367,7 +362,6 @@ codeunit 50100 MagentoAPI
                     end;
                 end;
             end;
-        end;
     end;
 
     procedure GetOrderDetails(orderIncrementId: Code[50])
@@ -408,7 +402,7 @@ codeunit 50100 MagentoAPI
         HttpHeader.Add('Content-Type', 'text/xml;charset=UTF-8');
         HttpHeader.Add('Action', 'urn:Action');
 
-        TextResponse := POST(Payload, HttpContent);
+        TextResponse := POST(HttpContent);
 
 
         XmlDocument.ReadFrom(TextResponse, OrderLineXMLDoc);
@@ -435,7 +429,7 @@ codeunit 50100 MagentoAPI
                         OrderLine.item_id := LineNode.AsXmlElement().InnerText();
 
                     Clear(LineNode);
-                    if LineXMLDoc.SelectSingleNode('//order_id', LineNode) then
+                    if LineXMLDoc.SelectSingleNode('//product_id', LineNode) then
                         OrderLine.product_id := LineNode.AsXmlElement().InnerText();
 
                     Clear(LineNode);
@@ -465,7 +459,8 @@ codeunit 50100 MagentoAPI
     end;
 
     var
-        SessionId: Text;
+
         MagentoSetup: Record "Magento Setup";
+        SessionId: Text;
 
 }

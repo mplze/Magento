@@ -62,7 +62,7 @@ page 50104 WebOrder
             }
 
 
-            part(Liene; Line)
+            part(Liene; "OrderSubPage")
             {
                 ApplicationArea = Basic, Suite;
                 UpdatePropagation = Both;

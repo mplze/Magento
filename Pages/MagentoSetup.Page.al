@@ -46,11 +46,14 @@ page 50100 "Magento Setup"
             action(Login)
             {
                 ApplicationArea = All;
+                ToolTip = 'Validate Loging';
+
                 trigger OnAction()
                 var
                     magentoAPI: Codeunit MagentoAPI;
                 begin
                     magentoAPI.Login();
+
 
                 end;
             }

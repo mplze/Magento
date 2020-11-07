@@ -1,10 +1,10 @@
-page 50103 Line
+page 50103 "OrderSubPage"
 {
-    
+
     Caption = 'Line';
     PageType = ListPart;
     SourceTable = "Order Line";
-    
+
     layout
     {
         area(content)
@@ -42,5 +42,5 @@ page 50103 Line
             }
         }
     }
-    
+
 }

@@ -50,9 +50,8 @@ page 50101 "Magento Items"
                 ApplicationArea = All;
                 Caption = 'Update Items';
                 ToolTip = 'Update Item master details';
-                Promoted = true;
-                PromotedIsBig = false;
-                PromotedCategory = Process;
+                Image = Item;
+
 
                 trigger OnAction()
                 var
@@ -70,6 +69,7 @@ page 50101 "Magento Items"
                 Caption = 'Update Inventory';
                 ToolTip = 'Update Inventory';
                 Promoted = true;
+                Image = Inventory;
                 PromotedIsBig = false;
                 PromotedCategory = Process;
 
