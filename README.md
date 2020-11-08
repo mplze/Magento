@@ -1,6 +1,12 @@
-# Magento
-Microsoft Dynamics Business Central intrigration with Magento
+# Microsoft Dynamics Business Central integration with Magento
 
-This code wll explan how intrgreafe Microsoft dynamics bussiness centrel with Magento website 
+This code will explain how integrate Microsoft dynamics business central with Magento website 
+
+In this REPO have implemented 
+Download Item Master
+Download Inventory 
+Download Order and Order Line
+
+
 
 #dynamics #microsoftdynamics #magento
